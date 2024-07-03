@@ -1,5 +1,5 @@
 import { Web3Modal, createWeb3Modal, defaultWagmiConfig } from '@web3modal/wagmi'
-import { polygon, mainnet, arbitrum } from 'viem/chains'
+import { polygon, mainnet, arbitrum, Chain } from 'viem/chains'
 import {
     reconnect, disconnect, Config, getAccount, getBalance, GetAccountReturnType,
     sendTransaction, SendTransactionErrorType, SendTransactionParameters, SendTransactionReturnType,
@@ -30,7 +30,20 @@ export async function configure(options: any, dotNetInterop: any) {
         icons: ['https://avatars.githubusercontent.com/u/37784886']
     }
 
-    const chains = [polygon] as const
+    let chains: [Chain] = [mainnet];
+    if (!chainIds.includes(mainnet.id))
+        chains.splice(0,1)
+    chainIds.forEach((chainId: number) => {
+        if (mainnet.id == chainId)
+            chains.push(mainnet)
+        else if (polygon.id == chainId)
+            chains.push(polygon)
+        else if (arbitrum.id == chainId)
+            chains.push(arbitrum)
+        else
+            throw 'ChainId not found.';
+    })
+    
     const config = defaultWagmiConfig({
         chains,
         projectId,
