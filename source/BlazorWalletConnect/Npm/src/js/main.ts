@@ -1,5 +1,5 @@
 import { Web3Modal, createWeb3Modal, defaultWagmiConfig } from '@web3modal/wagmi'
-import { polygon } from 'viem/chains'
+import { polygon, mainnet, arbitrum } from 'viem/chains'
 import {
     reconnect, disconnect, Config, getAccount, getBalance, GetAccountReturnType,
     sendTransaction, SendTransactionErrorType, SendTransactionParameters, SendTransactionReturnType,

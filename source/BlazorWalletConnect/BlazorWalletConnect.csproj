@@ -6,10 +6,30 @@
 		<Nullable>enable</Nullable>
 		<EmbedUntrackedSources>true</EmbedUntrackedSources>
 		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+		
+		<PackageId>BlazorWalletConnect</PackageId>
+		<Version>1.0.2</Version>
+		<Authors>Hamed Ansarian</Authors>
+		<Company>Tricksfor</Company>
+		<AssemblyVersion>1.0.2</AssemblyVersion>
+		<FileVersion>1.0.2</FileVersion>
+		<PackageProjectUrl>https://github.com/Phelecks/BlazorWalletConnect</PackageProjectUrl>
+		<Title>BlazorWalletConnect</Title>
+		<Description>Wallet Connect AppKit button, easy to add module to your blazor application.</Description>
+		<PackageLicenseExpression>MIT</PackageLicenseExpression>
+		<Copyright>https://www.tricksfor.com</Copyright>
+		<PackageReadmeFile>README.md</PackageReadmeFile>
 	</PropertyGroup>
 
 	<ItemGroup>
 	  <Compile Remove="WalletConnectInteropOld.cs" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <None Include="..\..\README.md">
+	    <Pack>True</Pack>
+	    <PackagePath>\</PackagePath>
+	  </None>
 	</ItemGroup>
 
 	<ItemGroup>
