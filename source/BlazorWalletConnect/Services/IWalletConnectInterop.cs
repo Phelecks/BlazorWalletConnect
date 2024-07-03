@@ -17,6 +17,7 @@ public interface IWalletConnectInterop : IAsyncDisposable, IDisposable
     Task<string> SignMessageAsync(string message);
     Task<BigInteger?> GetBalanceOfAsync(string erc721ContractAddress);
     Task<BigInteger?> GetTokenOfOwnerByIndexAsync(string erc721ContractAddress, BigInteger index);
+    Task<List<BigInteger>?> GetStakedTokensAsync(string erc721ContractAddress, string erc721StakeContractAddress);
 
 
 

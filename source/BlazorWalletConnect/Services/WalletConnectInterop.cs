@@ -82,6 +82,14 @@ namespace BlazorWalletConnect.Services
             return Newtonsoft.Json.JsonConvert.DeserializeObject<BigInteger>(stringResult);
         }
 
+        public async Task<List<BigInteger>?> GetStakedTokensAsync(string erc721ContractAddress, string erc721StakeContractAddress)
+        {
+            await EnsureConfiguredAsync();
+            var module = await GetModuleAsync();
+            var stringResult = await module.InvokeAsync<string>("getStakedTokens", erc721ContractAddress, erc721StakeContractAddress);
+            return Newtonsoft.Json.JsonConvert.DeserializeObject<List<BigInteger>?>(stringResult);
+        }
+
         public async Task<string> SendTransactionAsync(TransactionInput transactionInput)
         {
             await EnsureConfiguredAsync();

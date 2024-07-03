@@ -8,12 +8,17 @@ import {
     watchAccount, watchChainId,
     readContract, ReadContractReturnType
 } from '@wagmi/core'
-import { SignableMessage, erc721Abi, createPublicClient, http, parseAbi, parseAbiItem } from 'viem'
+import { SignableMessage, erc721Abi, createPublicClient, http } from 'viem'
 
 let modal: Web3Modal
 let configured = false
 let walletConfig: Config
 let account: GetAccountReturnType
+interface CustomChain {
+    chainId: number,
+    rpcUrl: string | null
+}
+let clientChainIds: [CustomChain]
 
 export async function configure(options: any, dotNetInterop: any) {
     if (configured) {
@@ -32,15 +37,20 @@ export async function configure(options: any, dotNetInterop: any) {
 
     let chains: [Chain] = [mainnet]
     chains.splice(0, 1)
-    chainIds.forEach((chainId: number) => {
-        if (mainnet.id === chainId)
-            chains.push(mainnet)
-        else if (polygon.id === chainId)
-            chains.push(polygon)
-        else if (arbitrum.id === chainId)
-            chains.push(arbitrum)
+    chainIds.forEach((item: CustomChain) => {
+        if (chains)
+            if (mainnet.id === item.chainId)
+                chains.push(mainnet)
+            else if (polygon.id === item.chainId)
+                chains.push(polygon)
+            else if (arbitrum.id === item.chainId)
+                chains.push(arbitrum)
+            else
+                throw 'ChainId not found.';
+        if (clientChainIds === undefined)
+            clientChainIds = [{ chainId: item.chainId, rpcUrl: item.rpcUrl }]
         else
-            throw 'ChainId not found.';
+            clientChainIds.push(item!)
     })
 
     const config = defaultWagmiConfig({
@@ -279,6 +289,8 @@ export async function getTokenOfOwnerByIndex(contractAddress: '0x${string}', ind
                 "type": "function"
             }
         ],
+        //functionName: 'tokenByIndex',
+        //abi: erc721Abi,
         args: [account.address!, index]
     })
     return JSON.stringify(tokenId, bigIntegerReplacer)
@@ -301,54 +313,71 @@ export async function getOwnerOf(contractAddress: '0x${string}', tokenId: bigint
     return JSON.stringify(owner)
 }
 
-export async function staked(contractAddress: '0x${string}', stakeContractAddress: '0x${string}') {
+export async function getStakedTokens(contractAddress: '0x${string}', stakeContractAddress: '0x${string}') {
     if (!configured) {
         throw "Attempting to disconnect before we have configured.";
     }
 
     await validateAccount()
 
-    const publicClient = createPublicClient({
+    var selectedChain = clientChainIds.find(exp => exp.chainId === account.chainId)
+
+
+    const publicClient = await createPublicClient({
         chain: account.chain,
-        transport: http()
+        transport: selectedChain === null ? http() : http(selectedChain?.rpcUrl!, {
+            timeout: 20000
+        }),
+        batch: {
+            multicall: true
+        }
     })
 
     const stakeLogs = await publicClient.getLogs({
         address: contractAddress,
-        event: parseAbiItem(
-            'event Transfer(address indexed from, address indexed to, uint256 indexed tokenId)'),
+        event: erc721Abi[2],
         args: {
             from: account.address,
-            to: stakeContractAddress
+            to: stakeContractAddress,
+            tokenId: null
         },
-        strict: true
+        strict: true,
+        fromBlock: 'earliest',
+        toBlock: 'latest'
     })
 
     const unStakeLogs = await publicClient.getLogs({
         address: contractAddress,
-        event: parseAbiItem(
-            'event Transfer(address indexed from, address indexed to, uint256 indexed tokenId)'),
+        event: erc721Abi[2],
         args: {
             from: stakeContractAddress,
-            to: account.address
+            to: account.address,
+            tokenId: null
         },
-        strict: true
+        strict: true,
+        fromBlock: 'earliest',
+        toBlock: 'latest'
     })
 
-    if (stakeLogs == null)
-        return JSON.stringify('error')
+    if (stakeLogs == null || undefined)
+        return null
 
     let distinctTokenIds: Array<bigint> = [];
     stakeLogs.forEach((item) => {
-        if (!distinctTokenIds.includes(item.args.tokenId))
+        if (distinctTokenIds.find(exp => exp === item.args.tokenId) === undefined)
             distinctTokenIds.push(item.args.tokenId)
     })
 
+    let result: Array<bigint> = []
+
     distinctTokenIds.forEach((item) => {
-        stakeLogs.values()
+        var stakes = stakeLogs.filter(exp => exp.args.tokenId === item).length
+        var unstakes = unStakeLogs.filter(exp => exp.args.tokenId === item).length
+        if (stakes > unstakes)
+            result.push(item)
     })
 
-    return JSON.stringify('')
+    return JSON.stringify(result, bigIntegerReplacer)
 }
 
 
