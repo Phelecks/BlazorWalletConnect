@@ -8,7 +8,7 @@ import {
     watchAccount, watchChainId,
     readContract, ReadContractReturnType
 } from '@wagmi/core'
-import { SignableMessage, erc721Abi } from 'viem'
+import { SignableMessage, erc721Abi, createPublicClient, http, parseAbi, parseAbiItem } from 'viem'
 
 let modal: Web3Modal
 let configured = false
@@ -30,20 +30,19 @@ export async function configure(options: any, dotNetInterop: any) {
         icons: ['https://avatars.githubusercontent.com/u/37784886']
     }
 
-    let chains: [Chain] = [mainnet];
-    if (!chainIds.includes(mainnet.id))
-        chains.splice(0,1)
+    let chains: [Chain] = [mainnet]
+    chains.splice(0, 1)
     chainIds.forEach((chainId: number) => {
-        if (mainnet.id == chainId)
+        if (mainnet.id === chainId)
             chains.push(mainnet)
-        else if (polygon.id == chainId)
+        else if (polygon.id === chainId)
             chains.push(polygon)
-        else if (arbitrum.id == chainId)
+        else if (arbitrum.id === chainId)
             chains.push(arbitrum)
         else
             throw 'ChainId not found.';
     })
-    
+
     const config = defaultWagmiConfig({
         chains,
         projectId,
@@ -147,7 +146,7 @@ export async function SendTransaction(input: string, dotNetInterop: any) {
             chainId: account.chainId,
             type: 'legacy',
             data: parsedTransaction.data
-        }) 
+        })
 
         const transactionHash: SendTransactionReturnType = await sendTransaction(walletConfig, {
             to: preparedTransaction.to!,
@@ -178,7 +177,7 @@ export async function SendTransaction(input: string, dotNetInterop: any) {
             }
         }, 0);
 
-        return JSON.stringify(transactionHash) 
+        return JSON.stringify(transactionHash)
     }
     catch (e) {
         const error = e as SendTransactionErrorType
@@ -285,48 +284,6 @@ export async function getTokenOfOwnerByIndex(contractAddress: '0x${string}', ind
     return JSON.stringify(tokenId, bigIntegerReplacer)
 }
 
-export async function getStakes(contractAddress: '0x${string}', tokenId: bigint) {
-    if (!configured) {
-        throw "Attempting to disconnect before we have configured.";
-    }
-
-    await validateAccount()
-
-    const stakeTicks: ReadContractReturnType = await readContract(walletConfig, {
-        address: contractAddress,
-        chainId: account.chainId,
-        functionName: 'stakes',
-        abi: [
-            {
-                "inputs": [
-                    {
-                        "internalType": "address",
-                        "name": "",
-                        "type": "address"
-                    },
-                    {
-                        "internalType": "uint256",
-                        "name": "",
-                        "type": "uint256"
-                    }
-                ],
-                "name": "stakes",
-                "outputs": [
-                    {
-                        "internalType": "uint256",
-                        "name": "",
-                        "type": "uint256"
-                    }
-                ],
-                "stateMutability": "view",
-                "type": "function"
-            }
-        ],
-        args: [account.address!, tokenId]
-    })
-    return JSON.stringify(stakeTicks, bigIntegerReplacer)
-}
-
 export async function getOwnerOf(contractAddress: '0x${string}', tokenId: bigint) {
     if (!configured) {
         throw "Attempting to disconnect before we have configured.";
@@ -344,10 +301,60 @@ export async function getOwnerOf(contractAddress: '0x${string}', tokenId: bigint
     return JSON.stringify(owner)
 }
 
+export async function staked(contractAddress: '0x${string}', stakeContractAddress: '0x${string}') {
+    if (!configured) {
+        throw "Attempting to disconnect before we have configured.";
+    }
+
+    await validateAccount()
+
+    const publicClient = createPublicClient({
+        chain: account.chain,
+        transport: http()
+    })
+
+    const stakeLogs = await publicClient.getLogs({
+        address: contractAddress,
+        event: parseAbiItem(
+            'event Transfer(address indexed from, address indexed to, uint256 indexed tokenId)'),
+        args: {
+            from: account.address,
+            to: stakeContractAddress
+        },
+        strict: true
+    })
+
+    const unStakeLogs = await publicClient.getLogs({
+        address: contractAddress,
+        event: parseAbiItem(
+            'event Transfer(address indexed from, address indexed to, uint256 indexed tokenId)'),
+        args: {
+            from: stakeContractAddress,
+            to: account.address
+        },
+        strict: true
+    })
+
+    if (stakeLogs == null)
+        return JSON.stringify('error')
+
+    let distinctTokenIds: Array<bigint> = [];
+    stakeLogs.forEach((item) => {
+        if (!distinctTokenIds.includes(item.args.tokenId))
+            distinctTokenIds.push(item.args.tokenId)
+    })
+
+    distinctTokenIds.forEach((item) => {
+        stakeLogs.values()
+    })
+
+    return JSON.stringify('')
+}
 
 
 
-function connectorReplacer(key:string, value:string) {
+
+function connectorReplacer(key: string, value: string) {
     if (key == "connector") {
         return undefined;
     }
@@ -378,4 +385,23 @@ function transactionRecieptReplacer(key: string, value: any) {
 async function validateAccount() {
     if (account == undefined || account.address == undefined)
         account = await getAccount(walletConfig)
+}
+
+
+function getErrorResponse(e: any) {
+    let response = {
+        data: null,
+        error: e.reason ?? e.message ?? e,
+        success: false
+    }
+    return JSON.stringify(response);
+}
+
+function getSuccessResponse(result: any) {
+    let response = {
+        data: result,
+        error: null,
+        success: true
+    };
+    return JSON.stringify(response);
 }

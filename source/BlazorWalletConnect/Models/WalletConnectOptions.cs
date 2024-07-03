@@ -34,10 +34,10 @@ public class WalletConnectOptions
     [JsonPropertyName("enableEmail")]
     public required bool EnableEmail { get; set; }
 
-    [JsonPropertyName("chains")]
     public required List<Chain> Chains { get; set; }
 
-    private List<int> ChainIds { get { return Chains.Select(s => (int)s).ToList(); } }
+    [JsonPropertyName("chainIds")]
+    public List<int> ChainIds { get { return Chains.Select(s => (int)s).ToList(); } }
 }
 
 public enum Chain
