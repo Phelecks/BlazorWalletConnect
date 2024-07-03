@@ -20,7 +20,7 @@ export async function configure(options: any, dotNetInterop: any) {
         return;
     }
     let { projectId, name, description, url, termsConditionsUrl, privacyPolicyUrl, themeMode, backgroundColor, accentColor,
-        enableEmail } = JSON.parse(options);
+        enableEmail, chainIds } = JSON.parse(options);
 
     // 2. Create wagmiConfig
     const metadata = {
