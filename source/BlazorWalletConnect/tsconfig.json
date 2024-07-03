@@ -1,0 +1,19 @@
+{
+  //"compilerOptions": {
+  //  "module": "CommonJS",
+  //  "target": "ES6",
+  //  "sourceMap": true
+  //},
+  //"exclude": [
+  //  "node_modules"
+  //]
+  "compilerOptions": {
+    "target": "ES6",
+    "module": "CommonJS",
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "sourceMap": true
+  }
+}

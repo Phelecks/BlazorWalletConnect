@@ -1,0 +1,35 @@
+﻿@using BlazorWalletConnect.Services
+@using Microsoft.AspNetCore.Components.Web
+@inject IWalletConnectInterop _walletConnectInterop
+
+@if (isConnected)
+{
+    <CascadingValue Value="this">
+        @ChildContent
+    </CascadingValue>
+    <w3m-button />
+}
+else
+{
+    <p>Loading...</p>
+}
+
+
+@code {
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    private bool isConnected;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        await base.OnAfterRenderAsync(firstRender);
+
+        if (firstRender)
+        {
+            await _walletConnectInterop.ConfigureAsync();
+            isConnected = true;
+            StateHasChanged();
+        }
+    }
+}
