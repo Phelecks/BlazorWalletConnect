@@ -122,12 +122,12 @@ export async function getWalletChainId() {
     return JSON.stringify(result)
 }
 
-export async function getWalletEnsAddress(address: string, blockNumber: bigint | undefined) {
+export async function getWalletEnsAddress(name: string, blockNumber: bigint | undefined) {
     if (!configured) {
         throw "Attempting to disconnect before we have configured.";
     }
     const result: GetEnsAddressReturnType = await getEnsAddress(walletConfig, {
-        name: normalize(address),
+        name: normalize(name),
         blockNumber: blockNumber
     })
     return JSON.stringify(result)

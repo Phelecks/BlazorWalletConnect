@@ -23,11 +23,11 @@ namespace BlazorWalletConnect.Services
             _jsRef = DotNetObjectReference.Create(this);
         }
 
-        public async Task ConfigureAsync()
+        public async Task ConfigureAsync(CancellationToken cancellationToken)
         {
             if (!_configured)
             {
-                var module = await GetModuleAsync();
+                var module = await GetModuleAsync(cancellationToken);
                 //var module = await _jsRuntime.InvokeAsync<IJSObjectReference>("import",
                 //    "./_content/BlazorWalletConnect/main.bundle.js");
                 await module.InvokeVoidAsync("configure", JsonSerializer.Serialize(_options), _jsRef);
@@ -35,66 +35,66 @@ namespace BlazorWalletConnect.Services
             }
         }
 
-        public async Task DisconnectAsync()
+        public async Task DisconnectAsync(CancellationToken cancellationToken)
         {
-            await EnsureConfiguredAsync();
-            var module = await GetModuleAsync();
-            await module.InvokeVoidAsync("disconnectWallet");
+            await EnsureConfiguredAsync(cancellationToken);
+            var module = await GetModuleAsync(cancellationToken);
+            await module.InvokeVoidAsync("disconnectWallet", cancellationToken: cancellationToken);
         }
 
-        public async Task<AccountDto?> GetAccountAsync()
+        public async Task<AccountDto?> GetAccountAsync(CancellationToken cancellationToken)
         {
-            await EnsureConfiguredAsync();
-            var module = await GetModuleAsync();
-            var stringResult = await module.InvokeAsync<string>("getWalletAccount");
+            await EnsureConfiguredAsync(cancellationToken);
+            var module = await GetModuleAsync(cancellationToken);
+            var stringResult = await module.InvokeAsync<string>("getWalletAccount", cancellationToken: cancellationToken);
             return JsonSerializer.Deserialize<AccountDto>(stringResult);
         }
 
-        public async Task<BalanceDto?> GetBalanceAsync()
+        public async Task<BalanceDto?> GetBalanceAsync(CancellationToken cancellationToken)
         {
-            await EnsureConfiguredAsync();
-            var module = await GetModuleAsync();
-            var stringResult = await module.InvokeAsync<string>("getWalletMainBalance");
+            await EnsureConfiguredAsync(cancellationToken);
+            var module = await GetModuleAsync(cancellationToken);
+            var stringResult = await module.InvokeAsync<string>("getWalletMainBalance", cancellationToken: cancellationToken);
             return Newtonsoft.Json.JsonConvert.DeserializeObject<BalanceDto>(stringResult);
         }
 
-        public async Task<BalanceDto?> GetBalanceAsync(string erc20TokenAddress)
+        public async Task<BalanceDto?> GetBalanceAsync(string erc20TokenAddress, CancellationToken cancellationToken)
         {
-            await EnsureConfiguredAsync();
-            var module = await GetModuleAsync();
-            var stringResult = await module.InvokeAsync<string>("getBalanceOfErc20Token", erc20TokenAddress);
+            await EnsureConfiguredAsync(cancellationToken);
+            var module = await GetModuleAsync(cancellationToken);
+            var stringResult = await module.InvokeAsync<string>("getBalanceOfErc20Token", cancellationToken: cancellationToken, erc20TokenAddress);
             return Newtonsoft.Json.JsonConvert.DeserializeObject<BalanceDto>(stringResult);
         }
 
-        public async Task<BigInteger?> GetBalanceOfAsync(string erc721ContractAddress)
+        public async Task<BigInteger?> GetBalanceOfAsync(string erc721ContractAddress, CancellationToken cancellationToken)
         {
-            await EnsureConfiguredAsync();
-            var module = await GetModuleAsync();
-            var stringResult = await module.InvokeAsync<string>("getBalanceOfErc721Token", erc721ContractAddress);
+            await EnsureConfiguredAsync(cancellationToken);
+            var module = await GetModuleAsync(cancellationToken);
+            var stringResult = await module.InvokeAsync<string>("getBalanceOfErc721Token", cancellationToken: cancellationToken, erc721ContractAddress);
             return Newtonsoft.Json.JsonConvert.DeserializeObject<BigInteger>(stringResult);
         }
 
-        public async Task<BigInteger?> GetTokenOfOwnerByIndexAsync(string erc721ContractAddress, BigInteger index)
+        public async Task<BigInteger?> GetTokenOfOwnerByIndexAsync(string erc721ContractAddress, BigInteger index, CancellationToken cancellationToken)
         {
-            await EnsureConfiguredAsync();
-            var module = await GetModuleAsync();
-            var stringResult = await module.InvokeAsync<string>("getTokenOfOwnerByIndex", erc721ContractAddress, (long)index);
+            await EnsureConfiguredAsync(cancellationToken);
+            var module = await GetModuleAsync(cancellationToken);
+            var stringResult = await module.InvokeAsync<string>("getTokenOfOwnerByIndex", cancellationToken: cancellationToken, erc721ContractAddress, (long)index);
             return Newtonsoft.Json.JsonConvert.DeserializeObject<BigInteger>(stringResult);
         }
 
-        public async Task<List<BigInteger>?> GetStakedTokensAsync(string erc721ContractAddress, string erc721StakeContractAddress)
+        public async Task<List<BigInteger>?> GetStakedTokensAsync(string erc721ContractAddress, string erc721StakeContractAddress, CancellationToken cancellationToken)
         {
-            await EnsureConfiguredAsync();
-            var module = await GetModuleAsync();
-            var stringResult = await module.InvokeAsync<string>("getStakedTokens", erc721ContractAddress, erc721StakeContractAddress);
+            await EnsureConfiguredAsync(cancellationToken);
+            var module = await GetModuleAsync(cancellationToken);
+            var stringResult = await module.InvokeAsync<string>("getStakedTokens", cancellationToken: cancellationToken, erc721ContractAddress, erc721StakeContractAddress);
             return Newtonsoft.Json.JsonConvert.DeserializeObject<List<BigInteger>?>(stringResult);
         }
 
-        public async Task<string> SendTransactionAsync(TransactionInput transactionInput)
+        public async Task<string> SendTransactionAsync(TransactionInput transactionInput, CancellationToken cancellationToken)
         {
-            await EnsureConfiguredAsync();
-            var module = await GetModuleAsync();
-            var stringResult = await module.InvokeAsync<string>("SendTransaction", Newtonsoft.Json.JsonConvert.SerializeObject(transactionInput), _jsRef);
+            await EnsureConfiguredAsync(cancellationToken);
+            var module = await GetModuleAsync(cancellationToken);
+            var stringResult = await module.InvokeAsync<string>("SendTransaction", cancellationToken: cancellationToken, Newtonsoft.Json.JsonConvert.SerializeObject(transactionInput), _jsRef);
             try
             {
                 var result = Newtonsoft.Json.JsonConvert.DeserializeObject<string>(stringResult);
@@ -171,11 +171,11 @@ namespace BlazorWalletConnect.Services
             ChainIdChanged?.Invoke(this, e);
         }
 
-        public async Task<string> SignMessageAsync(string message)
+        public async Task<string> SignMessageAsync(string message, CancellationToken cancellationToken)
         {
-            await EnsureConfiguredAsync();
-            var module = await GetModuleAsync();
-            var stringResult = await module.InvokeAsync<string>("SignMessage", message);
+            await EnsureConfiguredAsync(cancellationToken);
+            var module = await GetModuleAsync(cancellationToken);
+            var stringResult = await module.InvokeAsync<string>("SignMessage", cancellationToken: cancellationToken, message);
             try
             {
                 var result = Newtonsoft.Json.JsonConvert.DeserializeObject<string>(stringResult);
@@ -187,9 +187,37 @@ namespace BlazorWalletConnect.Services
             }
         }
 
+        public async Task<int> GetChainIdAsync(CancellationToken cancellationToken)
+        {
+            await EnsureConfiguredAsync(cancellationToken);
+            var module = await GetModuleAsync(cancellationToken);
+            var stringResult = await module.InvokeAsync<string>("getWalletChainId", cancellationToken: cancellationToken);
+            return Newtonsoft.Json.JsonConvert.DeserializeObject<int>(stringResult);
+        }
 
+        public async Task<string> GetEnsAddressAsync(string name, CancellationToken cancellationToken, BigInteger? blockNumber = null)
+        {
+            await EnsureConfiguredAsync(cancellationToken);
+            var module = await GetModuleAsync(cancellationToken);
+            var stringResult = await module.InvokeAsync<string>("getWalletEnsAddress", cancellationToken: cancellationToken, name, blockNumber is null ? null :(long)blockNumber);
+            return stringResult;
+        }
 
+        public async Task<string> GetEnsNameAsync(string address, CancellationToken cancellationToken, BigInteger? blockNumber = null)
+        {
+            await EnsureConfiguredAsync(cancellationToken);
+            var module = await GetModuleAsync(cancellationToken);
+            var stringResult = await module.InvokeAsync<string>("getWalletEnsName", cancellationToken: cancellationToken, address, blockNumber is null ? null : (long)blockNumber);
+            return stringResult;
+        }
 
+        public async Task<Transaction> GetTransactionByHashAsync(string hash, CancellationToken cancellationToken)
+        {
+            await EnsureConfiguredAsync(cancellationToken);
+            var module = await GetModuleAsync(cancellationToken);
+            var stringResult = await module.InvokeAsync<string>("getTransctionByHash", cancellationToken: cancellationToken, hash);
+            return Newtonsoft.Json.JsonConvert.DeserializeObject<Transaction>(stringResult);
+        }
 
 
 
@@ -207,17 +235,17 @@ namespace BlazorWalletConnect.Services
 
 
         #region Methods
-        private async ValueTask EnsureConfiguredAsync()
+        private async ValueTask EnsureConfiguredAsync(CancellationToken cancellationToken)
         {
             if (!_configured)
             {
-                await ConfigureAsync();
+                await ConfigureAsync(cancellationToken);
             }
         }
-        async Task<IJSObjectReference> GetModuleAsync()
+        async Task<IJSObjectReference> GetModuleAsync(CancellationToken cancellationToken)
         {
             if (_module is null)
-                _module = await _jsRuntime.InvokeAsync<IJSObjectReference>("import",
+                _module = await _jsRuntime.InvokeAsync<IJSObjectReference>("import", cancellationToken: cancellationToken,
                     "./_content/BlazorWalletConnect/main.bundle.js");
             return _module;
         }
