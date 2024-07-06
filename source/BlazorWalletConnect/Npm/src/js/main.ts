@@ -6,9 +6,12 @@ import {
     waitForTransactionReceipt, WaitForTransactionReceiptReturnType, WaitForTransactionReceiptErrorType,
     prepareTransactionRequest, signMessage, SignMessageErrorType,
     watchAccount, watchChainId,
-    readContract, ReadContractReturnType
+    readContract, ReadContractReturnType,
+    getChainId, getEnsAddress, GetEnsAddressReturnType, getEnsName, GetEnsNameReturnType,
+    getTransaction, GetTransactionReturnType
 } from '@wagmi/core'
-import { SignableMessage, erc721Abi, createPublicClient, http } from 'viem'
+import { SignableMessage, erc721Abi, createPublicClient, http, Address } from 'viem'
+import { normalize } from 'viem/ens'
 
 let modal: Web3Modal
 let configured = false
@@ -111,6 +114,36 @@ export async function getWalletAccount() {
     return JSON.stringify(account, connectorReplacer)
 }
 
+export async function getWalletChainId() {
+    if (!configured) {
+        throw "Attempting to disconnect before we have configured.";
+    }
+    const result = await getChainId(walletConfig)
+    return JSON.stringify(result)
+}
+
+export async function getWalletEnsAddress(address: string, blockNumber: bigint | undefined) {
+    if (!configured) {
+        throw "Attempting to disconnect before we have configured.";
+    }
+    const result: GetEnsAddressReturnType = await getEnsAddress(walletConfig, {
+        name: normalize(address),
+        blockNumber: blockNumber
+    })
+    return JSON.stringify(result)
+}
+
+export async function getWalletEnsName(address: Address, blockNumber: bigint | undefined) {
+    if (!configured) {
+        throw "Attempting to disconnect before we have configured.";
+    }
+    const result: GetEnsNameReturnType = await getEnsName(walletConfig, {
+        address: address,
+        blockNumber: blockNumber
+    })
+    return JSON.stringify(result)
+}
+
 export async function getWalletMainBalance() {
     if (!configured) {
         throw "Attempting to disconnect before we have configured.";
@@ -125,7 +158,7 @@ export async function getWalletMainBalance() {
     return JSON.stringify(balance, bigIntegerReplacer)
 }
 
-export async function getBalanceOfErc20Token(tokenAddress: '0x${string}') {
+export async function getBalanceOfErc20Token(tokenAddress: Address) {
     if (!configured) {
         throw "Attempting to disconnect before we have configured.";
     }
@@ -235,7 +268,7 @@ export async function SignMessage(message: SignableMessage) {
     }
 }
 
-export async function getBalanceOfErc721Token(contractAddress: '0x${string}') {
+export async function getBalanceOfErc721Token(contractAddress: Address) {
     if (!configured) {
         throw "Attempting to disconnect before we have configured.";
     }
@@ -252,7 +285,7 @@ export async function getBalanceOfErc721Token(contractAddress: '0x${string}') {
     return JSON.stringify(balance, bigIntegerReplacer)
 }
 
-export async function getTokenOfOwnerByIndex(contractAddress: '0x${string}', index: bigint) {
+export async function getTokenOfOwnerByIndex(contractAddress: Address, index: bigint) {
     if (!configured) {
         throw "Attempting to disconnect before we have configured.";
     }
@@ -296,7 +329,7 @@ export async function getTokenOfOwnerByIndex(contractAddress: '0x${string}', ind
     return JSON.stringify(tokenId, bigIntegerReplacer)
 }
 
-export async function getOwnerOf(contractAddress: '0x${string}', tokenId: bigint) {
+export async function getOwnerOf(contractAddress: Address, tokenId: bigint) {
     if (!configured) {
         throw "Attempting to disconnect before we have configured.";
     }
@@ -313,7 +346,7 @@ export async function getOwnerOf(contractAddress: '0x${string}', tokenId: bigint
     return JSON.stringify(owner)
 }
 
-export async function getStakedTokens(contractAddress: '0x${string}', stakeContractAddress: '0x${string}') {
+export async function getStakedTokens(contractAddress: Address, stakeContractAddress: Address) {
     if (!configured) {
         throw "Attempting to disconnect before we have configured.";
     }
@@ -321,8 +354,7 @@ export async function getStakedTokens(contractAddress: '0x${string}', stakeContr
     await validateAccount()
 
     var selectedChain = clientChainIds.find(exp => exp.chainId === account.chainId)
-
-
+    
     const publicClient = await createPublicClient({
         chain: account.chain,
         transport: selectedChain === null ? http() : http(selectedChain?.rpcUrl!, {
@@ -377,6 +409,19 @@ export async function getStakedTokens(contractAddress: '0x${string}', stakeContr
             result.push(item)
     })
 
+    return JSON.stringify(result, bigIntegerReplacer)
+}
+
+export async function getTransctionByHash(hash: Address) {
+    if (!configured) {
+        throw "Attempting to disconnect before we have configured.";
+    }
+
+    await validateAccount()
+
+    let result: GetTransactionReturnType = await getTransaction(walletConfig, {
+        hash: hash
+    })
     return JSON.stringify(result, bigIntegerReplacer)
 }
 
