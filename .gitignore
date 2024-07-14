@@ -398,3 +398,7 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
+/source/BlazorWalletConnect/Npm/src/js/main.js
+/source/BlazorWalletConnect/Npm/src/js/main.js.map
+/source/BlazorWalletConnect/wwwroot/main.bundle.js
+/source/BlazorWalletConnect/wwwroot/main.bundle.js.map
