@@ -1,19 +1,27 @@
 import { Web3Modal, createWeb3Modal, defaultWagmiConfig } from '@web3modal/wagmi'
-import { polygon, mainnet, arbitrum } from 'viem/chains'
+import { polygon, mainnet, arbitrum, Chain } from 'viem/chains'
 import {
     reconnect, disconnect, Config, getAccount, getBalance, GetAccountReturnType,
     sendTransaction, SendTransactionErrorType, SendTransactionParameters, SendTransactionReturnType,
     waitForTransactionReceipt, WaitForTransactionReceiptReturnType, WaitForTransactionReceiptErrorType,
     prepareTransactionRequest, signMessage, SignMessageErrorType,
     watchAccount, watchChainId,
-    readContract, ReadContractReturnType
+    readContract, ReadContractReturnType,
+    getChainId, getEnsAddress, GetEnsAddressReturnType, getEnsName, GetEnsNameReturnType,
+    getTransaction, GetTransactionReturnType
 } from '@wagmi/core'
-import { SignableMessage, erc721Abi } from 'viem'
+import { SignableMessage, erc721Abi, createPublicClient, http, Address } from 'viem'
+import { normalize } from 'viem/ens'
 
 let modal: Web3Modal
 let configured = false
 let walletConfig: Config
 let account: GetAccountReturnType
+interface CustomChain {
+    chainId: number,
+    rpcUrl: string | null
+}
+let clientChainIds: [CustomChain]
 
 export async function configure(options: any, dotNetInterop: any) {
     if (configured) {
@@ -30,7 +38,24 @@ export async function configure(options: any, dotNetInterop: any) {
         icons: ['https://avatars.githubusercontent.com/u/37784886']
     }
 
-    const chains = [polygon] as const
+    let chains: [Chain] = [mainnet]
+    chains.splice(0, 1)
+    chainIds.forEach((item: CustomChain) => {
+        if (chains)
+            if (mainnet.id === item.chainId)
+                chains.push(mainnet)
+            else if (polygon.id === item.chainId)
+                chains.push(polygon)
+            else if (arbitrum.id === item.chainId)
+                chains.push(arbitrum)
+            else
+                throw 'ChainId not found.';
+        if (clientChainIds === undefined)
+            clientChainIds = [{ chainId: item.chainId, rpcUrl: item.rpcUrl }]
+        else
+            clientChainIds.push(item!)
+    })
+
     const config = defaultWagmiConfig({
         chains,
         projectId,
@@ -89,6 +114,36 @@ export async function getWalletAccount() {
     return JSON.stringify(account, connectorReplacer)
 }
 
+export async function getWalletChainId() {
+    if (!configured) {
+        throw "Attempting to disconnect before we have configured.";
+    }
+    const result = await getChainId(walletConfig)
+    return JSON.stringify(result)
+}
+
+export async function getWalletEnsAddress(name: string, blockNumber: bigint | undefined) {
+    if (!configured) {
+        throw "Attempting to disconnect before we have configured.";
+    }
+    const result: GetEnsAddressReturnType = await getEnsAddress(walletConfig, {
+        name: normalize(name),
+        blockNumber: blockNumber
+    })
+    return JSON.stringify(result)
+}
+
+export async function getWalletEnsName(address: Address, blockNumber: bigint | undefined) {
+    if (!configured) {
+        throw "Attempting to disconnect before we have configured.";
+    }
+    const result: GetEnsNameReturnType = await getEnsName(walletConfig, {
+        address: address,
+        blockNumber: blockNumber
+    })
+    return JSON.stringify(result)
+}
+
 export async function getWalletMainBalance() {
     if (!configured) {
         throw "Attempting to disconnect before we have configured.";
@@ -103,7 +158,7 @@ export async function getWalletMainBalance() {
     return JSON.stringify(balance, bigIntegerReplacer)
 }
 
-export async function getBalanceOfErc20Token(tokenAddress: '0x${string}') {
+export async function getBalanceOfErc20Token(tokenAddress: Address) {
     if (!configured) {
         throw "Attempting to disconnect before we have configured.";
     }
@@ -134,7 +189,7 @@ export async function SendTransaction(input: string, dotNetInterop: any) {
             chainId: account.chainId,
             type: 'legacy',
             data: parsedTransaction.data
-        }) 
+        })
 
         const transactionHash: SendTransactionReturnType = await sendTransaction(walletConfig, {
             to: preparedTransaction.to!,
@@ -165,7 +220,7 @@ export async function SendTransaction(input: string, dotNetInterop: any) {
             }
         }, 0);
 
-        return JSON.stringify(transactionHash) 
+        return JSON.stringify(transactionHash)
     }
     catch (e) {
         const error = e as SendTransactionErrorType
@@ -213,7 +268,7 @@ export async function SignMessage(message: SignableMessage) {
     }
 }
 
-export async function getBalanceOfErc721Token(contractAddress: '0x${string}') {
+export async function getBalanceOfErc721Token(contractAddress: Address) {
     if (!configured) {
         throw "Attempting to disconnect before we have configured.";
     }
@@ -230,7 +285,7 @@ export async function getBalanceOfErc721Token(contractAddress: '0x${string}') {
     return JSON.stringify(balance, bigIntegerReplacer)
 }
 
-export async function getTokenOfOwnerByIndex(contractAddress: '0x${string}', index: bigint) {
+export async function getTokenOfOwnerByIndex(contractAddress: Address, index: bigint) {
     if (!configured) {
         throw "Attempting to disconnect before we have configured.";
     }
@@ -267,54 +322,14 @@ export async function getTokenOfOwnerByIndex(contractAddress: '0x${string}', ind
                 "type": "function"
             }
         ],
+        //functionName: 'tokenByIndex',
+        //abi: erc721Abi,
         args: [account.address!, index]
     })
     return JSON.stringify(tokenId, bigIntegerReplacer)
 }
 
-export async function getStakes(contractAddress: '0x${string}', tokenId: bigint) {
-    if (!configured) {
-        throw "Attempting to disconnect before we have configured.";
-    }
-
-    await validateAccount()
-
-    const stakeTicks: ReadContractReturnType = await readContract(walletConfig, {
-        address: contractAddress,
-        chainId: account.chainId,
-        functionName: 'stakes',
-        abi: [
-            {
-                "inputs": [
-                    {
-                        "internalType": "address",
-                        "name": "",
-                        "type": "address"
-                    },
-                    {
-                        "internalType": "uint256",
-                        "name": "",
-                        "type": "uint256"
-                    }
-                ],
-                "name": "stakes",
-                "outputs": [
-                    {
-                        "internalType": "uint256",
-                        "name": "",
-                        "type": "uint256"
-                    }
-                ],
-                "stateMutability": "view",
-                "type": "function"
-            }
-        ],
-        args: [account.address!, tokenId]
-    })
-    return JSON.stringify(stakeTicks, bigIntegerReplacer)
-}
-
-export async function getOwnerOf(contractAddress: '0x${string}', tokenId: bigint) {
+export async function getOwnerOf(contractAddress: Address, tokenId: bigint) {
     if (!configured) {
         throw "Attempting to disconnect before we have configured.";
     }
@@ -331,10 +346,89 @@ export async function getOwnerOf(contractAddress: '0x${string}', tokenId: bigint
     return JSON.stringify(owner)
 }
 
+export async function getStakedTokens(contractAddress: Address, stakeContractAddress: Address) {
+    if (!configured) {
+        throw "Attempting to disconnect before we have configured.";
+    }
+
+    await validateAccount()
+
+    var selectedChain = clientChainIds.find(exp => exp.chainId === account.chainId)
+    
+    const publicClient = await createPublicClient({
+        chain: account.chain,
+        transport: selectedChain === null ? http() : http(selectedChain?.rpcUrl!, {
+            timeout: 20000
+        }),
+        batch: {
+            multicall: true
+        }
+    })
+
+    const stakeLogs = await publicClient.getLogs({
+        address: contractAddress,
+        event: erc721Abi[2],
+        args: {
+            from: account.address,
+            to: stakeContractAddress,
+            tokenId: null
+        },
+        strict: true,
+        fromBlock: 'earliest',
+        toBlock: 'latest'
+    })
+
+    const unStakeLogs = await publicClient.getLogs({
+        address: contractAddress,
+        event: erc721Abi[2],
+        args: {
+            from: stakeContractAddress,
+            to: account.address,
+            tokenId: null
+        },
+        strict: true,
+        fromBlock: 'earliest',
+        toBlock: 'latest'
+    })
+
+    if (stakeLogs == null || undefined)
+        return null
+
+    let distinctTokenIds: Array<bigint> = [];
+    stakeLogs.forEach((item) => {
+        if (distinctTokenIds.find(exp => exp === item.args.tokenId) === undefined)
+            distinctTokenIds.push(item.args.tokenId)
+    })
+
+    let result: Array<bigint> = []
+
+    distinctTokenIds.forEach((item) => {
+        var stakes = stakeLogs.filter(exp => exp.args.tokenId === item).length
+        var unstakes = unStakeLogs.filter(exp => exp.args.tokenId === item).length
+        if (stakes > unstakes)
+            result.push(item)
+    })
+
+    return JSON.stringify(result, bigIntegerReplacer)
+}
+
+export async function getTransctionByHash(hash: Address) {
+    if (!configured) {
+        throw "Attempting to disconnect before we have configured.";
+    }
+
+    await validateAccount()
+
+    let result: GetTransactionReturnType = await getTransaction(walletConfig, {
+        hash: hash
+    })
+    return JSON.stringify(result, bigIntegerReplacer)
+}
 
 
 
-function connectorReplacer(key:string, value:string) {
+
+function connectorReplacer(key: string, value: string) {
     if (key == "connector") {
         return undefined;
     }
@@ -365,4 +459,23 @@ function transactionRecieptReplacer(key: string, value: any) {
 async function validateAccount() {
     if (account == undefined || account.address == undefined)
         account = await getAccount(walletConfig)
+}
+
+
+function getErrorResponse(e: any) {
+    let response = {
+        data: null,
+        error: e.reason ?? e.message ?? e,
+        success: false
+    }
+    return JSON.stringify(response);
+}
+
+function getSuccessResponse(result: any) {
+    let response = {
+        data: result,
+        error: null,
+        success: true
+    };
+    return JSON.stringify(response);
 }

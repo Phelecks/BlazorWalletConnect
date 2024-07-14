@@ -9,7 +9,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getOwnerOf = exports.getStakes = exports.getTokenOfOwnerByIndex = exports.getBalanceOfErc721Token = exports.SignMessage = exports.SendTransaction = exports.getBalanceOfErc20Token = exports.getWalletMainBalance = exports.getWalletAccount = exports.disconnectWallet = exports.configure = void 0;
+exports.getStakedTokens = exports.getOwnerOf = exports.getTokenOfOwnerByIndex = exports.getBalanceOfErc721Token = exports.SignMessage = exports.SendTransaction = exports.getBalanceOfErc20Token = exports.getWalletMainBalance = exports.getWalletAccount = exports.disconnectWallet = exports.configure = void 0;
 const wagmi_1 = require("@web3modal/wagmi");
 const chains_1 = require("viem/chains");
 const core_1 = require("@wagmi/core");
@@ -18,12 +18,13 @@ let modal;
 let configured = false;
 let walletConfig;
 let account;
+let clientChainIds;
 function configure(options, dotNetInterop) {
     return __awaiter(this, void 0, void 0, function* () {
         if (configured) {
             return;
         }
-        let { projectId, name, description, url, termsConditionsUrl, privacyPolicyUrl, themeMode, backgroundColor, accentColor, enableEmail } = JSON.parse(options);
+        let { projectId, name, description, url, termsConditionsUrl, privacyPolicyUrl, themeMode, backgroundColor, accentColor, enableEmail, chainIds } = JSON.parse(options);
         // 2. Create wagmiConfig
         const metadata = {
             name: name,
@@ -31,7 +32,23 @@ function configure(options, dotNetInterop) {
             url: url, // origin must match your domain & subdomain.
             icons: ['https://avatars.githubusercontent.com/u/37784886']
         };
-        const chains = [chains_1.polygon];
+        let chains = [chains_1.mainnet];
+        chains.splice(0, 1);
+        chainIds.forEach((item) => {
+            if (chains)
+                if (chains_1.mainnet.id === item.chainId)
+                    chains.push(chains_1.mainnet);
+                else if (chains_1.polygon.id === item.chainId)
+                    chains.push(chains_1.polygon);
+                else if (chains_1.arbitrum.id === item.chainId)
+                    chains.push(chains_1.arbitrum);
+                else
+                    throw 'ChainId not found.';
+            if (clientChainIds === undefined)
+                clientChainIds = [{ chainId: item.chainId, rpcUrl: item.rpcUrl }];
+            else
+                clientChainIds.push(item);
+        });
         const config = (0, wagmi_1.defaultWagmiConfig)({
             chains,
             projectId,
@@ -258,54 +275,14 @@ function getTokenOfOwnerByIndex(contractAddress, index) {
                     "type": "function"
                 }
             ],
+            //functionName: 'tokenByIndex',
+            //abi: erc721Abi,
             args: [account.address, index]
         });
         return JSON.stringify(tokenId, bigIntegerReplacer);
     });
 }
 exports.getTokenOfOwnerByIndex = getTokenOfOwnerByIndex;
-function getStakes(contractAddress, tokenId) {
-    return __awaiter(this, void 0, void 0, function* () {
-        if (!configured) {
-            throw "Attempting to disconnect before we have configured.";
-        }
-        yield validateAccount();
-        const stakeTicks = yield (0, core_1.readContract)(walletConfig, {
-            address: contractAddress,
-            chainId: account.chainId,
-            functionName: 'stakes',
-            abi: [
-                {
-                    "inputs": [
-                        {
-                            "internalType": "address",
-                            "name": "",
-                            "type": "address"
-                        },
-                        {
-                            "internalType": "uint256",
-                            "name": "",
-                            "type": "uint256"
-                        }
-                    ],
-                    "name": "stakes",
-                    "outputs": [
-                        {
-                            "internalType": "uint256",
-                            "name": "",
-                            "type": "uint256"
-                        }
-                    ],
-                    "stateMutability": "view",
-                    "type": "function"
-                }
-            ],
-            args: [account.address, tokenId]
-        });
-        return JSON.stringify(stakeTicks, bigIntegerReplacer);
-    });
-}
-exports.getStakes = getStakes;
 function getOwnerOf(contractAddress, tokenId) {
     return __awaiter(this, void 0, void 0, function* () {
         if (!configured) {
@@ -323,6 +300,64 @@ function getOwnerOf(contractAddress, tokenId) {
     });
 }
 exports.getOwnerOf = getOwnerOf;
+function getStakedTokens(contractAddress, stakeContractAddress) {
+    return __awaiter(this, void 0, void 0, function* () {
+        if (!configured) {
+            throw "Attempting to disconnect before we have configured.";
+        }
+        yield validateAccount();
+        var selectedChain = clientChainIds.find(exp => exp.chainId === account.chainId);
+        const publicClient = yield (0, viem_1.createPublicClient)({
+            chain: account.chain,
+            transport: selectedChain === null ? (0, viem_1.http)() : (0, viem_1.http)(selectedChain === null || selectedChain === void 0 ? void 0 : selectedChain.rpcUrl, {
+                timeout: 20000
+            }),
+            batch: {
+                multicall: true
+            }
+        });
+        const stakeLogs = yield publicClient.getLogs({
+            address: contractAddress,
+            event: viem_1.erc721Abi[2],
+            args: {
+                from: account.address,
+                to: stakeContractAddress,
+                tokenId: null
+            },
+            strict: true,
+            fromBlock: 'earliest',
+            toBlock: 'latest'
+        });
+        const unStakeLogs = yield publicClient.getLogs({
+            address: contractAddress,
+            event: viem_1.erc721Abi[2],
+            args: {
+                from: stakeContractAddress,
+                to: account.address,
+                tokenId: null
+            },
+            strict: true,
+            fromBlock: 'earliest',
+            toBlock: 'latest'
+        });
+        if (stakeLogs == null || undefined)
+            return null;
+        let distinctTokenIds = [];
+        stakeLogs.forEach((item) => {
+            if (distinctTokenIds.find(exp => exp === item.args.tokenId) === undefined)
+                distinctTokenIds.push(item.args.tokenId);
+        });
+        let result = [];
+        distinctTokenIds.forEach((item) => {
+            var stakes = stakeLogs.filter(exp => exp.args.tokenId === item).length;
+            var unstakes = unStakeLogs.filter(exp => exp.args.tokenId === item).length;
+            if (stakes > unstakes)
+                result.push(item);
+        });
+        return JSON.stringify(result, bigIntegerReplacer);
+    });
+}
+exports.getStakedTokens = getStakedTokens;
 function connectorReplacer(key, value) {
     if (key == "connector") {
         return undefined;
@@ -353,5 +388,22 @@ function validateAccount() {
         if (account == undefined || account.address == undefined)
             account = yield (0, core_1.getAccount)(walletConfig);
     });
+}
+function getErrorResponse(e) {
+    var _a, _b;
+    let response = {
+        data: null,
+        error: (_b = (_a = e.reason) !== null && _a !== void 0 ? _a : e.message) !== null && _b !== void 0 ? _b : e,
+        success: false
+    };
+    return JSON.stringify(response);
+}
+function getSuccessResponse(result) {
+    let response = {
+        data: result,
+        error: null,
+        success: true
+    };
+    return JSON.stringify(response);
 }
 //# sourceMappingURL=main.js.map

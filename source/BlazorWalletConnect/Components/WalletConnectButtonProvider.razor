@@ -1,8 +1,8 @@
 ﻿@using BlazorWalletConnect.Services
-@using Microsoft.AspNetCore.Components.Web
 @inject IWalletConnectInterop _walletConnectInterop
+@implements IAsyncDisposable
 
-@if (isConnected)
+@if (_isConnected)
 {
     <CascadingValue Value="this">
         @ChildContent
@@ -19,7 +19,9 @@ else
     [Parameter]
     public RenderFragment? ChildContent { get; set; }
 
-    private bool isConnected;
+    private readonly CancellationTokenSource _cancellationTokenSource = new();
+
+    private bool _isConnected;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -27,9 +29,14 @@ else
 
         if (firstRender)
         {
-            await _walletConnectInterop.ConfigureAsync();
-            isConnected = true;
+            await _walletConnectInterop.ConfigureAsync(_cancellationTokenSource.Token);
+            _isConnected = true;
             StateHasChanged();
         }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        await _cancellationTokenSource.CancelAsync();
     }
 }

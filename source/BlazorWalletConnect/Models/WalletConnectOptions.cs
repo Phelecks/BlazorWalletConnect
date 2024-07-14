@@ -34,11 +34,29 @@ public class WalletConnectOptions
     [JsonPropertyName("enableEmail")]
     public required bool EnableEmail { get; set; }
 
-    [JsonPropertyName("chains")]
-    public required List<Chain> Chains { get; set; }
+    public required List<ChainDto> Chains { get; set; }
 
-    private List<int> ChainIds { get { return Chains.Select(s => (int)s).ToList(); } }
+    [JsonPropertyName("chainIds")]
+    public List<WalletConnectChainDto> ChainIds { get { return Chains.Select(s => new WalletConnectChainDto { chainId = (int)s.chain, rpcUrl = s.rpcUrl }).ToList(); } }
 }
 
+public class ChainDto
+{
+    public ChainDto(Chain chain, string? rpcUrl)
+    {
+        this.chain = chain;
+        this.rpcUrl = rpcUrl;
+    }
+
+    public Chain chain { get; }
+    public string? rpcUrl { get; }
+
+}
+public class WalletConnectChainDto
+{
+    public int chainId { get; set; }
+    public string? rpcUrl { get; set; }
+
+}
 public enum Chain
 { Ethereum = 1, Polygon = 137, Arbitrum = 42161 }

@@ -1,19 +1,11 @@
 ﻿@using BlazorWalletConnect.Services
-@using Microsoft.AspNetCore.Components.Web
 @inject IWalletConnectInterop _walletConnectInterop
+@implements IAsyncDisposable
 
 <w3m-button loadingLabel="loading..." />
-@* @if (isConnected)
-{
-    <w3m-button />
-}
-else
-{
-    <p>Loading...</p>
-}
- *@
+
 @code {
-    private bool isConnected;
+    private readonly CancellationTokenSource _cancellationTokenSource = new();
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -21,9 +13,13 @@ else
 
         if (firstRender)
         {
-            await _walletConnectInterop.ConfigureAsync();
-            isConnected = true;
+            await _walletConnectInterop.ConfigureAsync(_cancellationTokenSource.Token);
             StateHasChanged();
         }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        await _cancellationTokenSource.CancelAsync();
     }
 }
