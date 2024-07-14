@@ -1,5 +1,6 @@
 import { Web3Modal, createWeb3Modal, defaultWagmiConfig } from '@web3modal/wagmi'
 import { polygon, mainnet, arbitrum, Chain } from 'viem/chains'
+import { ThemeMode } from '@web3modal/core'
 import {
     reconnect, disconnect, Config, getAccount, getBalance, GetAccountReturnType,
     sendTransaction, SendTransactionErrorType, SendTransactionParameters, SendTransactionReturnType,
@@ -13,74 +14,81 @@ import {
 import { SignableMessage, erc721Abi, createPublicClient, http, Address } from 'viem'
 import { normalize } from 'viem/ens'
 
-let modal: Web3Modal
-let configured = false
-let walletConfig: Config
-let account: GetAccountReturnType
-interface CustomChain {
-    chainId: number,
-    rpcUrl: string | null
-}
-let clientChainIds: [CustomChain]
+let modal: Web3Modal;
+let configured = false;
+let walletConfig: Config;
+let account: GetAccountReturnType;
+let chains: ChainDto[];
 
-export async function configure(options: any, dotNetInterop: any) {
+interface ChainDto {
+    chainId: number;
+    rpcUrl?: string | null;
+}
+
+interface WalletConnectOptions {
+    projectId: string;
+    name: string;
+    description: string;
+    url: string;
+    termsConditionsUrl?: string;
+    privacyPolicyUrl?: string;
+    enableEmail?: boolean;
+    icons: string[];
+    enableAnalytics?: boolean;
+    enableOnramp?: boolean;
+    SelectedChains: ChainDto[];
+    themeMode?: string;
+    themeVariableFontFamily?: string;
+    themeVariableFontSize?: string;
+    themeVariableAccentColor?: string;
+    themeVariableColorMix?: string;
+    themeVariableColorMixStrengthPercentage?: number;
+    themeVariableBorderRadius?: string;
+    themeVariableZIndex?: number;
+}
+
+export async function configure(walletConnectOptions: WalletConnectOptions, dotNetInterop: any) {
     if (configured) {
         return;
     }
-    let { projectId, name, description, url, termsConditionsUrl, privacyPolicyUrl, themeMode, backgroundColor, accentColor,
-        enableEmail, chainIds } = JSON.parse(options);
 
-    // 2. Create wagmiConfig
-    const metadata = {
-        name: name,
-        description: description,
-        url: url, // origin must match your domain & subdomain.
-        icons: ['https://avatars.githubusercontent.com/u/37784886']
-    }
+    chains = walletConnectOptions.SelectedChains;
 
-    let chains: [Chain] = [mainnet]
-    chains.splice(0, 1)
-    chainIds.forEach((item: CustomChain) => {
-        if (chains)
-            if (mainnet.id === item.chainId)
-                chains.push(mainnet)
-            else if (polygon.id === item.chainId)
-                chains.push(polygon)
-            else if (arbitrum.id === item.chainId)
-                chains.push(arbitrum)
-            else
-                throw 'ChainId not found.';
-        if (clientChainIds === undefined)
-            clientChainIds = [{ chainId: item.chainId, rpcUrl: item.rpcUrl }]
-        else
-            clientChainIds.push(item!)
-    })
-
+    const selectedChains = convertChains(walletConnectOptions.SelectedChains.map(x => x.chainId));
+    
     const config = defaultWagmiConfig({
-        chains,
-        projectId,
-        metadata,
-        enableEmail: enableEmail
-        //...wagmiOptions // Optional - Override createConfig parameters
+        chains: selectedChains,
+        projectId: walletConnectOptions.projectId,
+        enableEmail: walletConnectOptions.enableEmail,
+        metadata: {
+            name: walletConnectOptions.name,
+            description: walletConnectOptions.description,
+            url: walletConnectOptions.url,
+            icons: walletConnectOptions.icons
+        },
     })
 
-    walletConfig = config
+    walletConfig = config;
 
     reconnect(config)
 
-    // 3. Create modal
     modal = createWeb3Modal({
         wagmiConfig: config,
-        projectId,
-        enableAnalytics: true, // Optional - defaults to your Cloud configuration
-        enableOnramp: true, // Optional - false as default
-        termsConditionsUrl: termsConditionsUrl,
-        defaultChain: chains[0],
-        privacyPolicyUrl: privacyPolicyUrl,
-        themeMode: themeMode,
+        projectId: walletConnectOptions.projectId,
+        enableAnalytics: walletConnectOptions.enableAnalytics,
+        enableOnramp: walletConnectOptions.enableOnramp,
+        termsConditionsUrl: walletConnectOptions.termsConditionsUrl,
+        defaultChain: selectedChains[0],
+        privacyPolicyUrl: walletConnectOptions.privacyPolicyUrl,
+        themeMode: walletConnectOptions.themeMode as ThemeMode,
         themeVariables: {
-            '--w3m-color-mix': backgroundColor,
-            '--w3m-accent': accentColor
+            "--w3m-font-family": walletConnectOptions.themeVariableFontFamily,
+            "--w3m-font-size-master": walletConnectOptions.themeVariableFontSize,
+            "--w3m-accent": walletConnectOptions.themeVariableAccentColor,
+            "--w3m-color-mix": walletConnectOptions.themeVariableColorMix,
+            "--w3m-color-mix-strength": walletConnectOptions.themeVariableColorMixStrengthPercentage,
+            "--w3m-border-radius-master": walletConnectOptions.themeVariableBorderRadius,
+            "--w3m-z-index": walletConnectOptions.themeVariableZIndex
         }
     })
 
@@ -210,8 +218,7 @@ export async function SendTransaction(input: string, dotNetInterop: any) {
                 })
 
                 dotNetInterop.invokeMethodAsync("OnTransactionConfirmed", JSON.stringify(transactionReciept, transactionRecieptReplacer));
-            }
-            catch (e) {
+            } catch (e) {
                 const error = e as WaitForTransactionReceiptErrorType
 
                 if (error.name === 'TimeoutError')
@@ -221,8 +228,7 @@ export async function SendTransaction(input: string, dotNetInterop: any) {
         }, 0);
 
         return JSON.stringify(transactionHash)
-    }
-    catch (e) {
+    } catch (e) {
         const error = e as SendTransactionErrorType
 
         if (error.name === 'TransactionExecutionError') {
@@ -257,8 +263,7 @@ export async function SignMessage(message: SignableMessage) {
         });
 
         return JSON.stringify(result);
-    }
-    catch (e) {
+    } catch (e) {
         const error = e as SignMessageErrorType
         if (error.name === 'Error')
             return JSON.stringify(error.message)
@@ -353,8 +358,8 @@ export async function getStakedTokens(contractAddress: Address, stakeContractAdd
 
     await validateAccount()
 
-    var selectedChain = clientChainIds.find(exp => exp.chainId === account.chainId)
-    
+    var selectedChain = chains.find(exp => exp.chainId === account.chainId)
+
     const publicClient = await createPublicClient({
         chain: account.chain,
         transport: selectedChain === null ? http() : http(selectedChain?.rpcUrl!, {
@@ -425,9 +430,6 @@ export async function getTransctionByHash(hash: Address) {
     return JSON.stringify(result, bigIntegerReplacer)
 }
 
-
-
-
 function connectorReplacer(key: string, value: string) {
     if (key == "connector") {
         return undefined;
@@ -461,7 +463,6 @@ async function validateAccount() {
         account = await getAccount(walletConfig)
 }
 
-
 function getErrorResponse(e: any) {
     let response = {
         data: null,
@@ -478,4 +479,16 @@ function getSuccessResponse(result: any) {
         success: true
     };
     return JSON.stringify(response);
+}
+
+function convertChains(selectedChains: number[]): [Chain, ...Chain[]] {
+    const chainMap: { [key: number]: Chain } = {
+        1: mainnet,
+        137: polygon,
+        42161: arbitrum
+    };
+    
+    let chains: [Chain, ...Chain[]] = [mainnet, ...selectedChains.map(chain => chainMap[chain])]
+    chains.splice(0, 1);
+    return chains;
 }
