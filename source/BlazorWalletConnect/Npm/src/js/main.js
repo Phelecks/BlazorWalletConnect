@@ -9,11 +9,12 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getStakedTokens = exports.getOwnerOf = exports.getTokenOfOwnerByIndex = exports.getBalanceOfErc721Token = exports.SignMessage = exports.SendTransaction = exports.getBalanceOfErc20Token = exports.getWalletMainBalance = exports.getWalletAccount = exports.disconnectWallet = exports.configure = void 0;
+exports.getTransctionByHash = exports.getStakedTokens = exports.getOwnerOf = exports.getTokenOfOwnerByIndex = exports.getBalanceOfErc721Token = exports.SignMessage = exports.SendTransaction = exports.getBalanceOfErc20Token = exports.getWalletMainBalance = exports.getWalletEnsName = exports.getWalletEnsAddress = exports.getWalletChainId = exports.getWalletAccount = exports.disconnectWallet = exports.configure = void 0;
 const wagmi_1 = require("@web3modal/wagmi");
 const chains_1 = require("viem/chains");
 const core_1 = require("@wagmi/core");
 const viem_1 = require("viem");
+const ens_1 = require("viem/ens");
 let modal;
 let configured = false;
 let walletConfig;
@@ -74,14 +75,16 @@ function configure(options, dotNetInterop) {
             }
         });
         (0, core_1.watchAccount)(walletConfig, {
-            onChange: (currenctAccount, prevAccount) => {
-                dotNetInterop.invokeMethodAsync('OnAccountChanged', JSON.stringify(currenctAccount, connectorReplacer), JSON.stringify(prevAccount, connectorReplacer));
-            }
+            onChange: (currenctAccount, prevAccount) => __awaiter(this, void 0, void 0, function* () {
+                account = yield (0, core_1.getAccount)(walletConfig);
+                yield dotNetInterop.invokeMethodAsync('OnAccountChanged', JSON.stringify(currenctAccount, connectorReplacer), JSON.stringify(prevAccount, connectorReplacer));
+            })
         });
         (0, core_1.watchChainId)(walletConfig, {
-            onChange: (currenctChainId, prevChainId) => {
-                dotNetInterop.invokeMethodAsync('OnChainIdChanged', JSON.stringify(currenctChainId), JSON.stringify(prevChainId));
-            }
+            onChange: (currenctChainId, prevChainId) => __awaiter(this, void 0, void 0, function* () {
+                account = yield (0, core_1.getAccount)(walletConfig);
+                yield dotNetInterop.invokeMethodAsync('OnChainIdChanged', JSON.stringify(currenctChainId), JSON.stringify(prevChainId));
+            })
         });
         configured = true;
     });
@@ -106,6 +109,42 @@ function getWalletAccount() {
     });
 }
 exports.getWalletAccount = getWalletAccount;
+function getWalletChainId() {
+    return __awaiter(this, void 0, void 0, function* () {
+        if (!configured) {
+            throw "Attempting to disconnect before we have configured.";
+        }
+        const result = yield (0, core_1.getChainId)(walletConfig);
+        return JSON.stringify(result);
+    });
+}
+exports.getWalletChainId = getWalletChainId;
+function getWalletEnsAddress(name, blockNumber) {
+    return __awaiter(this, void 0, void 0, function* () {
+        if (!configured) {
+            throw "Attempting to disconnect before we have configured.";
+        }
+        const result = yield (0, core_1.getEnsAddress)(walletConfig, {
+            name: (0, ens_1.normalize)(name),
+            blockNumber: blockNumber
+        });
+        return JSON.stringify(result);
+    });
+}
+exports.getWalletEnsAddress = getWalletEnsAddress;
+function getWalletEnsName(address, blockNumber) {
+    return __awaiter(this, void 0, void 0, function* () {
+        if (!configured) {
+            throw "Attempting to disconnect before we have configured.";
+        }
+        const result = yield (0, core_1.getEnsName)(walletConfig, {
+            address: address,
+            blockNumber: blockNumber
+        });
+        return JSON.stringify(result);
+    });
+}
+exports.getWalletEnsName = getWalletEnsName;
 function getWalletMainBalance() {
     return __awaiter(this, void 0, void 0, function* () {
         if (!configured) {
@@ -358,6 +397,19 @@ function getStakedTokens(contractAddress, stakeContractAddress) {
     });
 }
 exports.getStakedTokens = getStakedTokens;
+function getTransctionByHash(hash) {
+    return __awaiter(this, void 0, void 0, function* () {
+        if (!configured) {
+            throw "Attempting to disconnect before we have configured.";
+        }
+        yield validateAccount();
+        let result = yield (0, core_1.getTransaction)(walletConfig, {
+            hash: hash
+        });
+        return JSON.stringify(result, bigIntegerReplacer);
+    });
+}
+exports.getTransctionByHash = getTransctionByHash;
 function connectorReplacer(key, value) {
     if (key == "connector") {
         return undefined;

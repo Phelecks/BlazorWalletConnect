@@ -21,7 +21,7 @@ else
 
         if (firstRender)
         {
-            await _walletConnectInterop.ConfigureAsync();
+            await _walletConnectInterop.ConfigureAsync(CancellationToken.None);
             isConnected = true;
             StateHasChanged();
         }

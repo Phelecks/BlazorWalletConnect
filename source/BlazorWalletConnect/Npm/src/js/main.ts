@@ -85,14 +85,16 @@ export async function configure(options: any, dotNetInterop: any) {
     })
 
     watchAccount(walletConfig, {
-        onChange: (currenctAccount, prevAccount) => {
-            dotNetInterop.invokeMethodAsync('OnAccountChanged', JSON.stringify(currenctAccount, connectorReplacer), JSON.stringify(prevAccount, connectorReplacer));
+        onChange: async (currenctAccount, prevAccount) => {
+            account = await getAccount(walletConfig)
+            await dotNetInterop.invokeMethodAsync('OnAccountChanged', JSON.stringify(currenctAccount, connectorReplacer), JSON.stringify(prevAccount, connectorReplacer));
         }
     })
 
     watchChainId(walletConfig, {
-        onChange: (currenctChainId, prevChainId) => {
-            dotNetInterop.invokeMethodAsync('OnChainIdChanged', JSON.stringify(currenctChainId), JSON.stringify(prevChainId));
+        onChange: async (currenctChainId, prevChainId) => {
+            account = await getAccount(walletConfig)
+            await dotNetInterop.invokeMethodAsync('OnChainIdChanged', JSON.stringify(currenctChainId), JSON.stringify(prevChainId));
         }
     })
 
