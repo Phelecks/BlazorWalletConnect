@@ -184,6 +184,7 @@ export async function SendTransaction(input: string, dotNetInterop: any) {
 
     try {
         const parsedTransaction: SendTransactionParameters = JSON.parse(input)
+        delete parsedTransaction.gas
 
         const preparedTransaction: PrepareTransactionRequestReturnType = await prepareTransactionRequest(walletConfig, {
             to: parsedTransaction.to,
@@ -225,8 +226,6 @@ export async function SendTransaction(input: string, dotNetInterop: any) {
         const error = e as SendTransactionErrorType
 
         if (error.name === 'TransactionExecutionError') {
-            const cause = error.cause
-            const stack = error.stack
             return JSON.stringify(error.details)
         }
         if (error.name === 'ConnectorAccountNotFoundError')
