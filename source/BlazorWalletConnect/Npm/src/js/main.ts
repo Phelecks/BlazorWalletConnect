@@ -4,7 +4,7 @@ import {
     reconnect, disconnect, Config, getAccount, getBalance, GetAccountReturnType,
     sendTransaction, SendTransactionErrorType, SendTransactionParameters, SendTransactionReturnType,
     waitForTransactionReceipt, WaitForTransactionReceiptReturnType, WaitForTransactionReceiptErrorType,
-    prepareTransactionRequest, signMessage, SignMessageErrorType,
+    prepareTransactionRequest, type PrepareTransactionRequestReturnType, signMessage, SignMessageErrorType,
     watchAccount, watchChainId,
     readContract, ReadContractReturnType,
     getChainId, getEnsAddress, GetEnsAddressReturnType, getEnsName, GetEnsNameReturnType,
@@ -185,11 +185,10 @@ export async function SendTransaction(input: string, dotNetInterop: any) {
     try {
         const parsedTransaction: SendTransactionParameters = JSON.parse(input)
 
-        const preparedTransaction = await prepareTransactionRequest(walletConfig, {
+        const preparedTransaction: PrepareTransactionRequestReturnType = await prepareTransactionRequest(walletConfig, {
             to: parsedTransaction.to,
             value: parsedTransaction.value,
             chainId: account.chainId,
-            type: 'legacy',
             data: parsedTransaction.data
         })
 
@@ -197,9 +196,7 @@ export async function SendTransaction(input: string, dotNetInterop: any) {
             to: preparedTransaction.to!,
             value: preparedTransaction.value,
             gas: preparedTransaction.gas,
-            gasPrice: preparedTransaction.gasPrice,
             chainId: account.chainId,
-            type: 'legacy',
             data: preparedTransaction.data
         });
 
