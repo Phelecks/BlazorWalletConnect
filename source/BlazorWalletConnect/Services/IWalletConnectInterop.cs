@@ -111,6 +111,12 @@ public interface IWalletConnectInterop : IAsyncDisposable, IDisposable
     /// <returns></returns>
     Task<Transaction> GetTransactionByHashAsync(string hash, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Switch chain id
+    /// </summary>
+    /// <param name="chainId"></param>
+    /// <returns></returns>
+    Task SwitchChainIdAsync(int chainId);
 
 
     event EventHandler<TransactionConfirmedEventArgs>? TransactionConfirmed;

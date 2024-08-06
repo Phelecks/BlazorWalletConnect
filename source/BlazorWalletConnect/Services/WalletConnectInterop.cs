@@ -5,6 +5,7 @@ using Microsoft.JSInterop;
 using Nethereum.RPC.Eth.DTOs;
 using System.Numerics;
 using System.Text.Json;
+using System.Threading;
 
 namespace BlazorWalletConnect.Services
 {
@@ -219,6 +220,12 @@ namespace BlazorWalletConnect.Services
             return Newtonsoft.Json.JsonConvert.DeserializeObject<Transaction>(stringResult);
         }
 
+        public async Task SwitchChainIdAsync(int chainId)
+        {
+            await EnsureConfiguredAsync(CancellationToken.None);
+            var module = await GetModuleAsync(CancellationToken.None);
+            await module.InvokeAsync<string>("switchChainId", chainId);
+        }
 
 
 

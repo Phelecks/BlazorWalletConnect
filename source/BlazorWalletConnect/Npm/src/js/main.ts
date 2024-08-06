@@ -1,11 +1,11 @@
 import { Web3Modal, createWeb3Modal, defaultWagmiConfig } from '@web3modal/wagmi'
-import { polygon, mainnet, arbitrum, Chain } from 'viem/chains'
+import { polygon, mainnet, arbitrum, optimism, bsc, Chain } from 'viem/chains'
 import {
     reconnect, disconnect, Config, getAccount, getBalance, GetAccountReturnType,
     sendTransaction, SendTransactionErrorType, SendTransactionParameters, SendTransactionReturnType,
     waitForTransactionReceipt, WaitForTransactionReceiptReturnType, WaitForTransactionReceiptErrorType,
     prepareTransactionRequest, type PrepareTransactionRequestReturnType, signMessage, SignMessageErrorType,
-    watchAccount, watchChainId,
+    watchAccount, watchChainId, switchChain,
     readContract, ReadContractReturnType,
     getChainId, getEnsAddress, GetEnsAddressReturnType, getEnsName, GetEnsNameReturnType,
     getTransaction, GetTransactionReturnType
@@ -38,18 +38,16 @@ export async function configure(options: any, dotNetInterop: any) {
         icons: ['https://avatars.githubusercontent.com/u/37784886']
     }
 
-    let chains: [Chain] = [mainnet]
-    chains.splice(0, 1)
+    let chains: [Chain] = chainIds.map((s: CustomChain) => {
+        if (s.chainId === mainnet.id) return mainnet
+        else if (s.chainId === polygon.id) return polygon
+        else if (s.chainId === arbitrum.id) return arbitrum
+        else if (s.chainId === optimism.id) return optimism
+        else if (s.chainId === bsc.id) return bsc
+        else throw 'ChainId not found.';
+    })
+
     chainIds.forEach((item: CustomChain) => {
-        if (chains)
-            if (mainnet.id === item.chainId)
-                chains.push(mainnet)
-            else if (polygon.id === item.chainId)
-                chains.push(polygon)
-            else if (arbitrum.id === item.chainId)
-                chains.push(arbitrum)
-            else
-                throw 'ChainId not found.';
         if (clientChainIds === undefined)
             clientChainIds = [{ chainId: item.chainId, rpcUrl: item.rpcUrl }]
         else
@@ -94,7 +92,7 @@ export async function configure(options: any, dotNetInterop: any) {
     watchChainId(walletConfig, {
         onChange: async (currenctChainId, prevChainId) => {
             account = await getAccount(walletConfig)
-            await dotNetInterop.invokeMethodAsync('OnChainIdChanged', JSON.stringify(currenctChainId), JSON.stringify(prevChainId));
+            await dotNetInterop.invokeMethodAsync('OnChainIdChanged', currenctChainId, prevChainId);
         }
     })
 
@@ -423,7 +421,17 @@ export async function getTransctionByHash(hash: Address) {
     return JSON.stringify(result, bigIntegerReplacer)
 }
 
+export async function switchChainId(chainId: number) {
+    if (!configured) {
+        throw "Attempting to sign message before we have configured.";
+    }
 
+    await validateAccount()
+
+    switchChain(walletConfig, {
+        chainId: chainId
+    })
+}
 
 
 function connectorReplacer(key: string, value: string) {
